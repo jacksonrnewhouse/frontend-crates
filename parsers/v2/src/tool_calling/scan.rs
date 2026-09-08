@@ -329,6 +329,16 @@ pub(crate) trait InvokeBoundary: Send {
         false
     }
 
+    /// Find a family-owned guided invoke opener, including accepted spelling variants.
+    fn guided_invoke_at(&self, _text: &str) -> Option<(usize, usize)> {
+        None
+    }
+
+    /// Whether a control marker is one of the family-owned guided invoke openers.
+    fn is_guided_invoke_marker(&self, _marker: &str) -> bool {
+        false
+    }
+
     /// Classify a family-specific guided wrapper using only newly appended bytes.
     /// `None` leaves classification to the shared stateless policy.
     fn guided_prefix_append(

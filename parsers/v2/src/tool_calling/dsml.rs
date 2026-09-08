@@ -23,7 +23,6 @@ pub(crate) const INVOKE_END: &str = "</｜DSML｜invoke>";
 pub(crate) const PARAMETER_PREFIX: &str = "<｜DSML｜parameter name=";
 pub(crate) const PARAMETER_END: &str = "</｜DSML｜parameter>";
 
-/// Construct the only DeepSeek V4 DSML state machine.
 pub(crate) fn deepseek_v4_scanner(_tools: &[Tool]) -> WrappedBlockScanner<DsmlEmitter> {
     WrappedBlockScanner::new(
         WrappedBlockSpec {

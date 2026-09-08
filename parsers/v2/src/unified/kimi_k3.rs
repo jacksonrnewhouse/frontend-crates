@@ -712,6 +712,14 @@ impl InvokeBoundary for KimiK3CallBoundary {
         true
     }
 
+    fn guided_invoke_at(&self, text: &str) -> Option<(usize, usize)> {
+        CALL_OPEN.find(text)
+    }
+
+    fn is_guided_invoke_marker(&self, marker: &str) -> bool {
+        CALL_OPEN.variants().any(|variant| variant == marker)
+    }
+
     fn guided_prefix_append(
         &mut self,
         candidate: &str,
@@ -2833,6 +2841,14 @@ mod tests {
                 "{}{OPEN}call tool=\"ignored\" index=\"1\"{SEP}{}",
                 TOOLS_OPEN.canonical,
                 arg("quoted", "string", "literal")
+            ),
+            format!(
+                "{}{} tool=\"ignored\" index=\"1\"{SEP}{}{}{}",
+                TOOLS_OPEN.canonical,
+                CALL_OPEN.spaced.unwrap(),
+                arg("quoted", "string", "literal"),
+                CALL_CLOSE.canonical,
+                TOOLS_CLOSE.canonical
             ),
         ];
         for wrapper in wrappers {

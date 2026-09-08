@@ -2843,7 +2843,7 @@ impl GuidedState {
             }
         }
         let response_controls;
-        let controls = if self.answer_only() && self.reasoning.preserves_response_markers() {
+        let mut controls = if self.answer_only() && self.reasoning.preserves_response_markers() {
             let literal_markers = self.reasoning.response_literal_markers();
             response_controls = self
                 .grammar
@@ -2852,28 +2852,32 @@ impl GuidedState {
                 .filter(|marker| !literal_markers.contains(&marker.as_str()))
                 .cloned()
                 .collect::<Vec<_>>();
-            &response_controls
+            response_controls
         } else {
-            &self.grammar.control_markers
+            self.grammar.control_markers.clone()
         };
+        if let Some(boundary) = self.invoke_boundary.as_ref() {
+            controls.retain(|marker| !boundary.is_guided_invoke_marker(marker));
+        }
         let regular = control_marker_at(
             haystack,
-            controls,
+            &controls,
             &self.grammar.invoke_end,
             limit,
             competing,
             flush,
-            self.invoke_boundary
-                .as_ref()
-                .filter(|boundary| boundary.owns_guided_prefix())
-                .map(|_| self.grammar.invoke_start.as_str()),
+            None,
         );
         if self.invoke_boundary.is_none() {
             return regular;
         }
 
         let mut cursor = 0;
-        while let Some(relative) = haystack[cursor..].find(&self.grammar.invoke_start) {
+        while let Some((relative, invoke_len)) = self
+            .invoke_boundary
+            .as_ref()
+            .and_then(|boundary| boundary.guided_invoke_at(&haystack[cursor..]))
+        {
             let at = cursor + relative;
             let suffix = &haystack[at..];
             if limit.is_some_and(|limit| at >= limit) {
@@ -2886,7 +2890,7 @@ impl GuidedState {
                 payload_is_empty: self.json.trim().is_empty(),
                 followed_by_competing_marker: competing
                     .iter()
-                    .any(|marker| suffix[self.grammar.invoke_start.len()..].starts_with(marker)),
+                    .any(|marker| suffix[invoke_len..].starts_with(marker)),
             };
             let boundary_prefix = self.invoke_prefix_append(
                 suffix,
@@ -2921,16 +2925,16 @@ impl GuidedState {
             match prefix {
                 Some(GuidedPrefix::Match) => {
                     if !guided_prefix_at_payload_boundary {
-                        cursor = at + self.grammar.invoke_start.len();
+                        cursor = at + invoke_len;
                         continue;
                     }
                     return regular
                         .filter(|(regular_at, _)| *regular_at < at)
-                        .or(Some((at, self.grammar.invoke_start.len())));
+                        .or(Some((at, invoke_len)));
                 }
                 Some(GuidedPrefix::Pending) if !flush => {
                     if !guided_prefix_at_payload_boundary {
-                        cursor = at + self.grammar.invoke_start.len();
+                        cursor = at + invoke_len;
                         continue;
                     }
                     return regular.filter(|(regular_at, _)| *regular_at < at);
@@ -2938,7 +2942,7 @@ impl GuidedState {
                 Some(GuidedPrefix::Strip) => {
                     return regular
                         .filter(|(regular_at, _)| *regular_at < at)
-                        .or(Some((at, self.grammar.invoke_start.len())));
+                        .or(Some((at, invoke_len)));
                 }
                 Some(GuidedPrefix::Pending | GuidedPrefix::NoMatch) | None => {}
             }
@@ -3006,7 +3010,7 @@ impl GuidedState {
                 return regular.filter(|(regular_at, _)| *regular_at < at);
             }
             self.reset_invoke_candidate();
-            cursor = at + self.grammar.invoke_start.len();
+            cursor = at + invoke_len;
         }
         regular
     }
