@@ -2877,6 +2877,11 @@ impl GuidedState {
             .invoke_boundary
             .as_ref()
             .and_then(|boundary| boundary.guided_invoke_at(&haystack[cursor..]))
+            .or_else(|| {
+                haystack[cursor..]
+                    .find(&self.grammar.invoke_start)
+                    .map(|relative| (relative, self.grammar.invoke_start.len()))
+            })
         {
             let at = cursor + relative;
             let suffix = &haystack[at..];
